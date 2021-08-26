@@ -1,6 +1,6 @@
 function gmailAutoarchive() {
 
-  // gmailAutoArchive - A Google Script to find emails matching search criteria older than x days and trashes or archives them
+  // gmailAutoArchive - A Google Script to find emails matching search criteria older than x days and trashes and/or archives them
   //
   // Example search terms:
   //
@@ -20,41 +20,68 @@ function gmailAutoarchive() {
   // More information: https://support.google.com/mail/answer/7190?hl=en
   //
 
-  // This rule will be added to all rules
-  var globalrule = '-is:important -is:starred'
-  
-  // Specify each search and the number of days to keep here
-  var rules = { 
-    "label:dontkeepthese" : 2,
-    "category:Social" : 14
-  }
-  
-  // If both false, will not take any action and only log output.
-  // Recommend setting one of these to true as you prefer.
-  
-  var trash = false; // if True, send mail to trash. if False, do not.
-  var archive = false; // if True, send mail to Archive. if False do not.
-  
-  // Should be no need to touch anything below this line
-  
-  if(trash) Logger.log('Sending matching threads to trash');
-  if(archive) Logger.log('Sending matching threads to archive');
-  if(!(trash || archive)) Logger.log('Not taking any action on matching threads');
+  const DEBUG = true;              // Debugging Output
+  const BATCH_SIZE = 100;          // Batch Size, do not recommend changing this value
 
-  var batch_size = 100;
+  const defaultactions = {         // Default actions for matches
+    archive : false,               // Archive?
+    trash :   true                 // Trash?
+  };             
+  
+  const globalrule = '-is:starred' // Include in all search terms
+    
+  const rules = {                  // defined rules, examples as follows
+
+//    "label:Beskar" : {           // Search terms
+//      daystokeep : 14,           // Days to keep
+//      archive : true,            // Override Default Actions
+//      trash : false              // Override Default Actions
+//    },
+  
+//    "from:Kenobi" : 14,          // Define Search temrs and days to keep only, use default actions
+    
+  }
 
   for (let search in rules) {
-    var keepdays = rules[search];
-    Logger.log(`Processing all threads matching ${search} ${globalrule} older than ${keepdays} Days`);
+    
+    var actions = Array();
+    actions = defaultactions;
+
+    var daystokeep = 0;
+    
+    if(DEBUG) Logger.log(`Search: [${search}]`);
+
+    if (rules[search].hasOwnProperty('daystokeep'))  {
+      if(DEBUG) Logger.log('Override Default Actions');
+      daystokeep = rules[search].daystokeep;
+      actions.archive = rules[search].archive;
+      actions.trash = rules[search].trash;
+    } else {
+      daystokeep = rules[search]
+    }
+
+    if(DEBUG) Logger.log(`Find: [${search} ${globalrule}] older than [${daystokeep}] Days - Archive [${actions.archive}] Trash [${actions.trash}]`);
+
     var allthreads = GmailApp.search(`${search} ${globalrule}`);
-    Logger.log(`Identified total of ${allthreads.length.toString()} threads matching ${search} ${globalrule}`);
-    var threads = GmailApp.search(`${search} ${globalrule} older_than:${keepdays}d`);
-    Logger.log(`Identified ${threads.length.toString()} threads for processing matching ${search} ${globalrule}`);
+
+    if(DEBUG) Logger.log(`Total of ${allthreads.length.toString()} threads matching ${search} ${globalrule}`);
+
+    var threads = GmailApp.search(`${search} ${globalrule} older_than:${daystokeep}d`);
+
+    if(DEBUG) Logger.log(`Identified ${threads.length.toString()} threads matching ${search} ${globalrule} older than ${daystokeep} Days`);
+    
     while (threads.length) {
-      var this_batch_size = Math.min(threads.length, batch_size);
+      var this_batch_size = Math.min(threads.length, BATCH_SIZE);
       var this_batch = threads.splice(0, this_batch_size);
-      if(trash) GmailApp.moveThreadsToTrash(this_batch);
-      if(archive) GmailApp.moveThreadsToArchive(this_batch);
+      if(DEBUG) Logger.log(`Batched ${this_batch_size} threads for action`);
+      if(actions.archive) {
+        if(DEBUG) Logger.log(`Archiving ${this_batch_size} threads...`);
+        GmailApp.moveThreadsToArchive(this_batch);
+      } 
+      if(actions.trash) {
+        if(DEBUG) Logger.log(`Trashing ${this_batch_size} threads...`);
+        GmailApp.moveThreadsToTrash(this_batch);
+      }
     }
   }
 }
