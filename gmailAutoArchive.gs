@@ -23,9 +23,9 @@ function gmailAutoarchive() {
   const DEBUG = true;              // Debugging Output
   const BATCH_SIZE = 100;          // Batch Size, do not recommend changing this value
 
-  const defaultactions = {         // Default actions for matches
-    archive : false,               // Archive?
-    trash :   true                 // Trash?
+  const defaultactions = {         // Default actions for matches, suggest setting one or other of these to true
+    archive : false,               // Archive will remove the items from your Inbox, they will still be available for searching
+    trash :   false                // Trash will move the items to your Trash folder, they will be automatically deleted after 30 days
   };             
   
   const globalrule = '-is:starred' // Include in all search terms
